@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Valgomat – Vors med politikkstil</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --muted: #1f2937;
+      --text: #e5e7eb;
+      --accent: #22d3ee;
+      --ring: rgba(34,211,238,.35);
+    }
+    * { box-sizing: border-box }
+    body {
+      margin: 0; background: radial-gradient(1200px 800px at 20% -10%, #1e293b 0%, #0b1220 60%, #060a13 100%);
+      color: var(--text); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      display: grid; place-items: start center; min-height: 100svh; padding: 24px;
+    }
+    .wrap { width: 100%; max-width: 880px; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      backdrop-filter: blur(6px);
+    }
+    header.card { padding: 22px 22px 10px; margin-bottom: 14px; }
+    header h1 { margin: 0 0 6px; font-size: clamp(22px, 3vw, 28px); letter-spacing: .3px }
+    header p { margin: 0; color: #cbd5e1; font-size: 14px }
+
+    form.card { padding: 18px; }
+    .q { padding: 16px; border-radius: 14px; background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.06); margin: 12px 0; }
+    .q h3 { margin: 0 0 10px; font-size: 17px }
+
+    .opt { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+    .opt:hover { background: rgba(255,255,255,.04); }
+    .opt input { appearance: none; width: 20px; height: 20px; margin: 0; border: 2px solid #94a3b8; border-radius: 6px; display: grid; place-content: center; transition: .15s border-color, .15s background; }
+    .opt input:checked { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px var(--ring); }
+    .opt span { margin-top: 1px }
+
+    .actions { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 12px }
+    .btn { background: var(--accent); color: #001018; border: none; padding: 10px 14px; font-weight: 700; border-radius: 12px; cursor: pointer; box-shadow: 0 8px 24px rgba(34,211,238,.2); }
+    .btn.secondary { background: transparent; color: #cbd5e1; border: 1px solid rgba(255,255,255,.14) }
+
+    .result.card { padding: 16px; margin-top: 14px; display: none }
+    .result h2 { margin: 0 0 6px; font-size: 20px }
+    .result p { margin: 0; color: #cbd5e1 }
+    .admin { margin-top: 12px; padding: 14px; border-radius: 14px; background: rgba(34,197,94,.1); border: 1px dashed rgba(34,197,94,.4); display: none }
+    .admin h3 { margin: 0 0 8px; }
+    #straffePanel { margin-top: 10px; display: none; }
+    footer { margin-top: 12px; color: #94a3b8; font-size: 12px; text-align: center }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="card">
+      <h1>Jørgens Valgomat</h1>
+      <p>Velg ett alternativ per spørsmål. Resultatet viser hvilket «parti» du matcher best med. <span id="adminTag" style="display:none">Admin-modus er aktiv – fasit vises etter innsending.</span></p>
+    </header>
+
+    <form id="quiz" class="card" autocomplete="off">
+      <div class="actions">
+        <button class="btn" type="submit">Se resultat</button>
+        <button class="btn secondary" type="button" id="resetBtn">Nullstill</button>
+      </div>
+    </form>
+
+    <section id="result" class="result card">
+      <h2 id="winner"></h2>
+      <p id="summary"></p>
+      <div id="straffePanel" class="card">
+        <h3>Straffeslurker per komité</h3>
+        <p id="straffeList"></p>
+      </div>
+
+      <div id="adminPanel" class="admin">
+        <h3>Fasit for denne innsendingen</h3>
+        <div id="drinkList"></div>
+      </div>
+    </section>
+
+    <footer>
+      Tips: Åpne <code class="cfg">index.html?admin=1</code> for å vise fasit i admin-modus.
+    </footer>
+  </div>
+
+<script>
+
+function randomPoints(parties, min=1, max=5) {
+  const points = {};
+  parties.forEach(p => {
+    points[p] = Math.floor(Math.random() * (max - min + 1)) + min;
+  });
+  return points;
+}
+
+const PARTIES = ["LaBamba", "ArrKom", "PR", "Koskom", "Fagkom", "Bedkom", "Webkom", "Bankkom", "README"];
+
+const QUESTIONS = [
+  { question: "Det er for få fattige i Norge",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["README", "PR"]) },
+      { text: "Uenig", points: randomPoints(["Koskom", "Webkom"]) },
+      { text: "Enig", points: randomPoints(["Fagkom", "LaBamba", "ArrKom"]) },
+      { text: "Svært enig", points: randomPoints(["Bankkom", "Bedkom"]) }
+    ]
+  },
+  { question: "Samtykkeloven burde også gjelde for dyr",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["LaBamba", "PR"]) },
+      { text: "Uenig", points: randomPoints(["Arrkom", "Webkom"]) },
+      { text: "Enig", points: randomPoints(["Bedkom", "Bakkom"]) },
+      { text: "Svært enig", points: randomPoints(["Fagkom", "README"]) }
+    ]
+  },
+  { question: "Det er for mange kvinner på datateknologi",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["Webkom", "Fagkom"]) },
+      { text: "Uenig", points: randomPoints(["LaBamba", "Bankkom"]) },
+      { text: "Enig", points: randomPoints(["README", "Arrkom"]) },
+      { text: "Svært enig", points: randomPoints(["Bedkom", "PR"]) }
+    ]
+  },
+  { question: "Fyllekjøreloven burde fjernes",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["Koskom", "Bankkom", "PR"]) },
+      { text: "Uenig", points: randomPoints(["Fagkom", "README"]) },
+      { text: "Enig", points: randomPoints(["Webkom", "Bedkom"]) },
+      { text: "Svært enig", points: randomPoints(["LaBamba", "ArrKom"]) }
+    ]
+  },
+  { question: "Det burde være lov å være pedofil",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["Bedkom", "Bankkom"]) },
+      { text: "Uenig", points: randomPoints(["Koskom", "README"]) },
+      { text: "Enig", points: randomPoints(["Fagkom", "PR"]) },
+      { text: "Svært enig", points: randomPoints(["LaBamba", "ArrKom", "Webkom"]) }
+    ]
+  },
+  { question: "Man burde ikke få lønn under 'mamma-perm'",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["Koskom", "README"]) },
+      { text: "Uenig", points: randomPoints(["Bankkom", "PR"]) },
+      { text: "Enig", points: randomPoints(["LaBamba", "ArrKom"]) },
+      { text: "Svært enig", points: randomPoints(["Webkom", "Bedkom"]) }
+    ]
+  },
+  { question: "Østkanten burde ha høyere skatt enn vestkanten",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["PR", "README"]) },
+      { text: "Uenig", points: randomPoints(["PR"]) },
+      { text: "Enig", points: randomPoints(["Webkom", "Fagkom", "LaBamba"]) },
+      { text: "Svært enig", points: randomPoints(["Bedkom", "ArrKom"]) }
+    ]
+  },
+  { question: "Genvors burde ha 23 års aldersgrense",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["PR", "Bedkom"]) },
+      { text: "Uenig", points: randomPoints(["Koskom", "Bankkom"]) },
+      { text: "Enig", points: randomPoints(["README", "Fagkom"]) },
+      { text: "Svært enig", points: randomPoints(["LaBamba", "ArrKom"]) }
+    ]
+  },
+  { question: "Visse 'personer' burde ikke ha stemmerett (hint: 1913, TDT4100)",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["LaBamba", "Bankkom"]) },
+      { text: "Uenig", points: randomPoints(["Koskom", "README"]) },
+      { text: "Enig", points: randomPoints(["Bedkom", "ArrKom"]) },
+      { text: "Svært enig", points: randomPoints(["Webkom", "ArrKom"]) }
+    ]
+  },
+  { question: "Gutta burde ikke ha lov til å runke på A3 toalettene",
+    options: [
+      { text: "Svært uenig", points: randomPoints(["Bedkom", "Fagkom"]) },
+      { text: "Uenig", points: randomPoints(["Koskom", "Bankkom"]) },
+      { text: "Enig", points: randomPoints(["LaBamba", "ArrKom", "Webkom"]) },
+      { text: "Svært enig", points: randomPoints(["README", "PR"]) }
+    ]
+  }
+];
+
+/***** RENDER *****/
+const qsEl = document.getElementById('quiz');
+const resultEl = document.getElementById('result');
+const adminPanel = document.getElementById('adminPanel');
+const adminTag = document.getElementById('adminTag');
+const straffePanel = document.getElementById('straffePanel');
+const straffeListEl = document.getElementById('straffeList');
+
+const params = new URLSearchParams(location.search);
+const ADMIN = params.get('admin') === '1' || params.get('admin') === 'true';
+if (ADMIN) {
+  adminPanel.style.display = 'block';
+  adminTag.style.display = 'inline';
+}
+
+function renderQuestions() {
+  QUESTIONS.forEach((q, i) => {
+    const qWrap = document.createElement('section');
+    qWrap.className = 'q';
+
+    const h = document.createElement('h3');
+    h.textContent = `${i+1}. ${q.question}`;
+    qWrap.appendChild(h);
+
+    q.options.forEach((opt, j) => {
+      const id = `q${i}_o${j}`;
+      const label = document.createElement('label');
+      label.className = 'opt';
+
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = `q${i}`;
+      input.value = j;
+      input.id = id;
+
+      const span = document.createElement('span');
+      span.textContent = opt.text;
+
+      label.appendChild(input);
+      label.appendChild(span);
+      qWrap.appendChild(label);
+    });
+
+    qsEl.insertBefore(qWrap, qsEl.querySelector('.actions'));
+  });
+}
+renderQuestions();
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  qsEl.reset();
+  resultEl.style.display = 'none';
+  straffePanel.style.display = 'none';
+});
+
+function randomStraffeslurker() {
+  return Math.floor(Math.random() * 10) + 1;
+}
+
+qsEl.addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  const answers = [];
+  for (let i = 0; i < QUESTIONS.length; i++) {
+    const chosen = qsEl.querySelector(`input[name="q${i}"]:checked`);
+    if (!chosen) {
+      alert(`Du mangler å svare på spørsmål ${i+1}.`);
+      return;
+    }
+    answers.push(parseInt(chosen.value, 10));
+  }
+
+  const score = new Array(PARTIES.length).fill(0);
+
+  answers.forEach((optIdx, qi) => {
+    const opt = QUESTIONS[qi].options[optIdx];
+    for (const party in opt.points) {
+      score[PARTIES.indexOf(party)] += opt.points[party];
+    }
+  });
+
+  let bestIdx = 0; 
+  let bestScore = -1;
+  score.forEach((v, i) => { if (v > bestScore) { bestScore = v; bestIdx = i; } });
+
+  document.getElementById('winner').textContent = `Du matcher best med: ${PARTIES[bestIdx]}`;
+  document.getElementById('summary').textContent = `Poeng: ${score.map((v,i)=>`${PARTIES[i]} ${v}`).join(' · ')}`;
+
+  // Straffeslurker 5-10 per komité
+  const straffeList = PARTIES.map((party, i) => {
+    const slurker = Math.floor(Math.random() * 6) + 5; // 5-10
+    return { party, slurker };
+  });
+
+  // Sett ekstra info for beste komité
+  const bestParty = straffeList[bestIdx];
+  const otherParties = straffeList.filter((_, i) => i !== bestIdx);
+
+    straffeListEl.innerHTML = `Du må ta <strong>${bestParty.slurker}</strong> straffeslurker for <strong>${bestParty.party}</strong>!`;
+
+  straffePanel.style.display = 'block';
+  resultEl.style.display = 'block';
+  resultEl.scrollIntoView({behavior:'smooth'});
+});
+</script>
+</body>
+</html>
